@@ -1,0 +1,53 @@
+---
+title: "Module 7 Report"
+author: "stRong_codeRs"
+date: "2023-11-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(MuMIn)
+library(tidyverse)
+```
+
+```{r data analysis, echo=FALSE, message=FALSE, warning=FALSE}
+ang <- seq(45,168.75,length.out = 12)
+normF <- c(0.71, 0.77, 0.83, 0.91, 0.97, 1.00, 0.96, 0.94, 0.89, 0.84, 0.77, 0.74)
+qplot(ang,normF)+geom_point(aes(x=ang[which.max(normF)],y=normF[which.max(normF)]),col="red",size=4)
+ang[which.max(normF)]
+```
+
+```{r models, echo=FALSE, message=FALSE, warning=FALSE}
+poly.m2 <- lm(normF~poly(ang,2)) 
+poly.m3 <- lm(normF~poly(ang,3)) 
+poly.m4 <- lm(normF~poly(ang,4)) 
+
+AICc(poly.m2,poly.m3,poly.m4) 
+
+x.pred <- seq(45,157.5,length.out = 1000) 
+
+normF.pred <- predict(poly.m4,newdata = data.frame(ang=x.pred)) 
+
+qplot(ang,normF)+geom_point(aes(x=x.pred,y=normF.pred),col="red")+geom_point(aes(x=x.pred[which.max(normF.pred)],y=normF.pred[which.max(normF.pred)]),size=5,col="blue")
+x.pred[which.max(normF.pred)]
+
+normF.fat <- c(0.65, 0.71, 0.81, 0.89,0.92, 0.96, 0.99, 1, 0.96, 0.92, 0.84, 0.77) 
+
+qplot(ang,normF.fat)+geom_point(aes(x=ang[which.max(normF.fat)],y=normF.fat[which.max(normF.fat)]),col="red",size=4)
+ang[which.max(normF.fat)]
+
+poly.m2.fat <- lm(normF.fat~poly(ang,2)) 
+poly.m3.fat <- lm(normF.fat~poly(ang,3)) 
+poly.m4.fat <- lm(normF.fat~poly(ang,4)) 
+
+AICc(poly.m2.fat,poly.m3.fat,poly.m4.fat)
+
+normF.pred.fat <- predict(poly.m2.fat,newdata = data.frame(ang=x.pred)) 
+
+qplot(ang,normF)+geom_point(aes(x=x.pred,y=normF.pred.fat),col="red")+geom_point(aes(x=x.pred[which.max(normF.pred.fat)],y=normF.pred.fat[which.max(normF.pred.fat)]),size=5,col="blue")
+
+x.pred[which.max(normF.pred.fat)]-x.pred[which.max(normF.pred)]
+
+```
