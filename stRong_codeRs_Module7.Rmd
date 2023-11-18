@@ -11,6 +11,24 @@ library(ggplot2)
 library(MuMIn)
 library(tidyverse)
 ```
+```{r}
+f <- list.files("new_data", pattern = ".csv", full.names=TRUE)
+f
+
+dat.l <- list()
+
+for(i in f){
+met.dat<- unlist(strsplit(i,"_"))
+who <- met.dat[3]
+activity <- met.dat[4]
+ang <- gsub(".csv","", met.dat[5])
+dat.l[[i]]<- read_csv(i) %>%
+mutate(who = who, angle = ang, activity = activity)
+}
+
+dat <- do.call(rbind,dat.l)
+print(dat)
+```
 
 ```{r data analysis, echo=FALSE, message=FALSE, warning=FALSE}
 ang <- seq(45,168.75,length.out = 12)
