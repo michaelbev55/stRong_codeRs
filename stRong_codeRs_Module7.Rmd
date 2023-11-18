@@ -50,4 +50,68 @@ qplot(ang,normF)+geom_point(aes(x=x.pred,y=normF.pred.fat),col="red")+geom_point
 
 x.pred[which.max(normF.pred.fat)]-x.pred[which.max(normF.pred)]
 
+library(tidyverse)
+
+set.seed(1234)
+
+sub <- 1:10 
+dat.l <- list() 
+
+for(i in sub){
+  noise <- rnorm(length(ang),mean = 0.02,sd = 0.01)
+  noise2 <- rnorm(length(ang),mean = 0.02,sd = 0.01)
+  dat.l[[i]] <- tibble(
+    rbind(
+      data.frame(ang,force=normF+noise,subject=i,exp="control"),
+      data.frame(ang,force=normF.fat+noise2,subject=i,exp="fatigue")
+      )  
+    )%>%
+    group_by(subject,exp)%>%
+    mutate(force=force/max(force))
+  
+}
+
+dat <- do.call(rbind,dat.l) 
+
+dat%>%
+  ggplot(aes(ang,force,col=exp))+geom_point()
+
+AICs <- dat%>%
+  group_by(subject,exp)%>%
+  summarize(
+    m2=AICc(lm(force~poly(ang,2))), #second order
+    m3=AICc(lm(force~poly(ang,3))), #third order
+    m4=AICc(lm(force~poly(ang,4))) #fourth order
+  )%>%
+  pivot_longer(m2:m4,names_to="model",values_to="AICc")%>%
+  print()
+
+fits <- dat%>%
+  group_by(subject,exp)%>%
+  summarize(
+    m2=predict(lm(force~poly(ang,2)),newdata=data.frame(ang=x.pred)), #second order
+    m3=predict(lm(force~poly(ang,3)),newdata=data.frame(ang=x.pred)), #third order
+    m4=predict(lm(force~poly(ang,4)),newdata=data.frame(ang=x.pred)) #fourth order
+  )%>%
+   pivot_longer(m2:m4,names_to="model")%>%
+   group_by(subject,exp,model)%>%
+   summarize(theta_max=x.pred[which.max(value)])%>%
+   print()
+
+best.models <- fits%>%
+  left_join(AICs)%>%
+  group_by(subject,exp)%>%
+  mutate(best=AICc==min(AICc))%>%
+  filter(best==TRUE)%>%
+  dplyr::select(-best)%>%
+  print()
+
+anova(lm(theta_max~exp,best.models))
+
+best.models%>%
+  pivot_wider(id_cols=subject,names_from = exp,values_from=theta_max)%>%
+  mutate(shift=fatigue-control)%>%
+  ungroup()%>%
+  summarise(mean.shift=mean(shift),se.shift=sd(shift)/sqrt(length(shift)))
+
 ```
