@@ -33,19 +33,26 @@ for(i in f){
   ang <- as.numeric(gsub(".csv","", met.dat[5]))
   dat.l[[i]]<- read_csv(i) %>%
   mutate(who = who, angle = ang, activity = activity) %>% 
-  filter(!(who=="letiacianna" | who=="leticianna" & activity %in%   c("fatigue","control")))%>%
+  filter(!(who=="letiacianna" | who=="leticianna" & activity %in% c("fatigue","control")))%>%
   group_by(activity)%>%
-  mutate(normF=abs(force/max(force)))
+  mutate(normF=abs(force/max(force))) %>%
+  print()
 }
 
 
 
 dat <- do.call(rbind,dat.l)
 print(dat)
+
+
 ```
 
 ```{r models, echo=FALSE, message=FALSE, warning=FALSE}
-AIC <- dat %>% 
+
+dat%>%
+  ggplot(aes(angle,normF,col=activity))+geom_point()
+
+AICs <- dat %>% 
   group_by(who,activity) %>% 
   summarize(
     pol.m2=AICc(lm(normF~poly(angle,2))),
@@ -54,11 +61,54 @@ AIC <- dat %>%
   ) %>% 
   pivot_longer(pol.m2:pol.m4, names_to = "model", values_to = "AICc")
 
-AIC %>% 
+AICs %>% 
   kable(caption= "Table #1: Depicts the second, third, and fouth order polynomial models") %>% 
   print()
+
+x.pred <- seq(45,157.5,length.out = 1000)
+
+fits <- dat%>%
+  group_by(who,activity)%>%
+  summarize(
+    pol.m2=predict(lm(normF~poly(angle,2)),newdata=data.frame(angle=x.pred)),
+   pol.m3=predict(lm(normF~poly(angle,3)),newdata=data.frame(angle=x.pred)), 
+    pol.m4=predict(lm(normF~poly(angle,4)),newdata=data.frame(angle=x.pred)) 
+  )%>%
+   pivot_longer(pol.m2:pol.m4,names_to="model")%>%
+   group_by(who,activity,model)%>%
+   summarize(theta_max=x.pred[which.max(value)])%>%
+   print()
+
 ```
 
+
+```{r best, echo=FALSE, message=FALSE, warning=FALSE}
+best.models <- fits%>%
+  left_join(AICs)%>%
+  group_by(who,activity)%>%
+  mutate(best=AICc==min(AICc))%>%
+  filter(best==TRUE)%>%
+  dplyr::select(-best)%>%
+  print()
+best.models %>% 
+  kable(caption = "Table #2: Depicts the model that fits best, determined by the lowest AIC value")
+
+
+```
+
+```{r anova and best models, echo=FALSE, message=FALSE, warning=FALSE}
+anova(lm(theta_max~activity,best.models)) %>% 
+  print()
+
+best.models%>%
+  pivot_wider(id_cols=who,names_from = activity,values_from=theta_max)%>%
+  mutate(shift=fatigue-control)%>%
+  ungroup()%>%
+  summarise(mean.shift=mean(shift,na.rm = TRUE),se.shift=sd(shift,na.rm=TRUE)/sqrt(length(shift))) %>% 
+  kable(caption = "Table #3: Shows the mean shift in the max theta values")
+
+
+```
 
 
 
