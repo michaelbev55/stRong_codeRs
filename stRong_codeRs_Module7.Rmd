@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 library(MuMIn)
 library(tidyverse)
+library(knitr)
 ```
 
 ## Introduction
@@ -26,55 +27,39 @@ f <- list.files("new_data", pattern = ".csv", full.names=TRUE)
 dat.l <- list()
 
 for(i in f){
-met.dat<- unlist(strsplit(i,"_"))
-who <- met.dat[3]
-activity <- met.dat[4]
-ang <- gsub(".csv","", met.dat[5])
-dat.l[[i]]<- read_csv(i) %>%
-mutate(who = who, angle = ang, activity = activity)
+  met.dat<- unlist(strsplit(i,"_"))
+  who <- met.dat[3]
+  activity <- met.dat[4]
+  ang <- as.numeric(gsub(".csv","", met.dat[5]))
+  dat.l[[i]]<- read_csv(i) %>%
+  mutate(who = who, angle = ang, activity = activity) %>% 
+  filter(!(who=="letiacianna" | who=="leticianna" & activity %in%   c("fatigue","control")))%>%
+  group_by(activity)%>%
+  mutate(normF=abs(force/max(force)))
 }
+
+
 
 dat <- do.call(rbind,dat.l)
 print(dat)
 ```
 
-```{r data analysis, echo=FALSE, message=FALSE, warning=FALSE}
-dat_recording_max<-dat%>%
-  group_by(who,angle,activity)%>%
-  summarize(recording_max=max(abs(force)))%>%
-  print()
-
-dat_Fmax<-dat_recording_max%>%
-  group_by(who,activity)%>%
-  summarize(Fmax=max(recording_max))%>%
-  print()
-
-dat_Fmax_norm<-dat_recording_max%>%
-    left_join(dat_Fmax)
-dat_Fmax_norm<-dat_Fmax_norm%>%
-  group_by(angle,who,activity)%>%
-  summarize(Fmax_norm=(recording_max/Fmax))%>%
-  print()
-
-dat_Fmax_norm%>% 
-  ggplot(aes(x=angle,y=Fmax_norm,col=activity))+geom_point()
-
-dat_Fmax_norm_mean<-dat_Fmax_norm%>%
-  group_by(angle,activity)%>%
-  summarize(Fmax_norm_mean=mean(Fmax_norm))
-
-dat_Fmax_norm_mean%>% 
-  ggplot(aes(x=angle,y=Fmax_norm_mean,col=activity))+geom_point()+labs(y="Mean Normalized Fmax", x="Angle")
-
-```
-
 ```{r models, echo=FALSE, message=FALSE, warning=FALSE}
-poly.m2 <- lm(Fmax_norm~poly(angle,2),data=dat_Fmax_norm) 
-poly.m3 <- lm(Fmax_norm~poly(angle,3),data=dat_Fmax_norm) 
-poly.m4 <- lm(Fmax_norm~poly(angle,4),data=dat_Fmax_norm) 
-AICc(poly.m2,poly.m3,poly.m4)
+AIC <- dat %>% 
+  group_by(who,activity) %>% 
+  summarize(
+    pol.m2=AICc(lm(normF~poly(angle,2))),
+    pol.m3=AICc(lm(normF~poly(angle,3))),
+    pol.m4=AICc(lm(normF~poly(angle,4)))
+  ) %>% 
+  pivot_longer(pol.m2:pol.m4, names_to = "model", values_to = "AICc")
 
+AIC %>% 
+  kable(caption= "Table #1: Depicts the second, third, and fouth order polynomial models") %>% 
+  print()
 ```
+
+
 
 
 ## Discussion 
