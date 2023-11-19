@@ -5,15 +5,23 @@ date: "2023-11-07"
 output: html_document
 ---
 
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 library(MuMIn)
 library(tidyverse)
 ```
+
+## Introduction
+
+
+## Methods
+
+## Results  
 ```{r}
 f <- list.files("new_data", pattern = ".csv", full.names=TRUE)
-f
 
 dat.l <- list()
 
@@ -31,105 +39,45 @@ print(dat)
 ```
 
 ```{r data analysis, echo=FALSE, message=FALSE, warning=FALSE}
-ang <- seq(45,168.75,length.out = 12)
-normF <- c(0.71, 0.77, 0.83, 0.91, 0.97, 1.00, 0.96, 0.94, 0.89, 0.84, 0.77, 0.74)
-qplot(ang,normF)+geom_point(aes(x=ang[which.max(normF)],y=normF[which.max(normF)]),col="red",size=4)
-ang[which.max(normF)]
+dat_recording_max<-dat%>%
+  group_by(who,angle,activity)%>%
+  summarize(recording_max=max(abs(force)))%>%
+  print()
+
+dat_Fmax<-dat_recording_max%>%
+  group_by(who,activity)%>%
+  summarize(Fmax=max(recording_max))%>%
+  print()
+
+dat_Fmax_norm<-dat_recording_max%>%
+    left_join(dat_Fmax)
+dat_Fmax_norm<-dat_Fmax_norm%>%
+  group_by(angle,who,activity)%>%
+  summarize(Fmax_norm=(recording_max/Fmax))%>%
+  print()
+
+dat_Fmax_norm%>% 
+  ggplot(aes(x=angle,y=Fmax_norm,col=activity))+geom_point()
+
+dat_Fmax_norm_mean<-dat_Fmax_norm%>%
+  group_by(angle,activity)%>%
+  summarize(Fmax_norm_mean=mean(Fmax_norm))
+
+dat_Fmax_norm_mean%>% 
+  ggplot(aes(x=angle,y=Fmax_norm_mean,col=activity))+geom_point()+labs(y="Mean Normalized Fmax", x="Angle")
+
 ```
 
 ```{r models, echo=FALSE, message=FALSE, warning=FALSE}
-poly.m2 <- lm(normF~poly(ang,2)) 
-poly.m3 <- lm(normF~poly(ang,3)) 
-poly.m4 <- lm(normF~poly(ang,4)) 
-
-AICc(poly.m2,poly.m3,poly.m4) 
-
-x.pred <- seq(45,157.5,length.out = 1000) 
-
-normF.pred <- predict(poly.m4,newdata = data.frame(ang=x.pred)) 
-
-qplot(ang,normF)+geom_point(aes(x=x.pred,y=normF.pred),col="red")+geom_point(aes(x=x.pred[which.max(normF.pred)],y=normF.pred[which.max(normF.pred)]),size=5,col="blue")
-x.pred[which.max(normF.pred)]
-
-normF.fat <- c(0.65, 0.71, 0.81, 0.89,0.92, 0.96, 0.99, 1, 0.96, 0.92, 0.84, 0.77) 
-
-qplot(ang,normF.fat)+geom_point(aes(x=ang[which.max(normF.fat)],y=normF.fat[which.max(normF.fat)]),col="red",size=4)
-ang[which.max(normF.fat)]
-
-poly.m2.fat <- lm(normF.fat~poly(ang,2)) 
-poly.m3.fat <- lm(normF.fat~poly(ang,3)) 
-poly.m4.fat <- lm(normF.fat~poly(ang,4)) 
-
-AICc(poly.m2.fat,poly.m3.fat,poly.m4.fat)
-
-normF.pred.fat <- predict(poly.m2.fat,newdata = data.frame(ang=x.pred)) 
-
-qplot(ang,normF)+geom_point(aes(x=x.pred,y=normF.pred.fat),col="red")+geom_point(aes(x=x.pred[which.max(normF.pred.fat)],y=normF.pred.fat[which.max(normF.pred.fat)]),size=5,col="blue")
-
-x.pred[which.max(normF.pred.fat)]-x.pred[which.max(normF.pred)]
-
-library(tidyverse)
-
-set.seed(1234)
-
-sub <- 1:10 
-dat.l <- list() 
-
-for(i in sub){
-  noise <- rnorm(length(ang),mean = 0.02,sd = 0.01)
-  noise2 <- rnorm(length(ang),mean = 0.02,sd = 0.01)
-  dat.l[[i]] <- tibble(
-    rbind(
-      data.frame(ang,force=normF+noise,subject=i,exp="control"),
-      data.frame(ang,force=normF.fat+noise2,subject=i,exp="fatigue")
-      )  
-    )%>%
-    group_by(subject,exp)%>%
-    mutate(force=force/max(force))
-  
-}
-
-dat <- do.call(rbind,dat.l) 
-
-dat%>%
-  ggplot(aes(ang,force,col=exp))+geom_point()
-
-AICs <- dat%>%
-  group_by(subject,exp)%>%
-  summarize(
-    m2=AICc(lm(force~poly(ang,2))), #second order
-    m3=AICc(lm(force~poly(ang,3))), #third order
-    m4=AICc(lm(force~poly(ang,4))) #fourth order
-  )%>%
-  pivot_longer(m2:m4,names_to="model",values_to="AICc")%>%
-  print()
-
-fits <- dat%>%
-  group_by(subject,exp)%>%
-  summarize(
-    m2=predict(lm(force~poly(ang,2)),newdata=data.frame(ang=x.pred)), #second order
-    m3=predict(lm(force~poly(ang,3)),newdata=data.frame(ang=x.pred)), #third order
-    m4=predict(lm(force~poly(ang,4)),newdata=data.frame(ang=x.pred)) #fourth order
-  )%>%
-   pivot_longer(m2:m4,names_to="model")%>%
-   group_by(subject,exp,model)%>%
-   summarize(theta_max=x.pred[which.max(value)])%>%
-   print()
-
-best.models <- fits%>%
-  left_join(AICs)%>%
-  group_by(subject,exp)%>%
-  mutate(best=AICc==min(AICc))%>%
-  filter(best==TRUE)%>%
-  dplyr::select(-best)%>%
-  print()
-
-anova(lm(theta_max~exp,best.models))
-
-best.models%>%
-  pivot_wider(id_cols=subject,names_from = exp,values_from=theta_max)%>%
-  mutate(shift=fatigue-control)%>%
-  ungroup()%>%
-  summarise(mean.shift=mean(shift),se.shift=sd(shift)/sqrt(length(shift)))
+poly.m2 <- lm(Fmax_norm~poly(angle,2),data=dat_Fmax_norm) 
+poly.m3 <- lm(Fmax_norm~poly(angle,3),data=dat_Fmax_norm) 
+poly.m4 <- lm(Fmax_norm~poly(angle,4),data=dat_Fmax_norm) 
+AICc(poly.m2,poly.m3,poly.m4)
 
 ```
+
+
+## Discussion 
+
+
+## Author Contributions 
