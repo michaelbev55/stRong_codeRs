@@ -122,7 +122,7 @@ As stated in @BUTTERFIELD20051932, previous research in this subject has determi
 ## Author Contributions
 
 Michael Bevilacqua: Data Collection and Code. <br> Ben Riccio: Data Collection, Code, Intro and Discussion.\
-Baylie Larson: Data Collection, Code.\
+Baylie Larson: Data Collection, Code.
 Tara Gerjarusak: Data Collection.
 
 ## References
