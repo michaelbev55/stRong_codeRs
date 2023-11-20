@@ -40,7 +40,7 @@ for(i in f){
 }
 dat <- do.call(rbind,dat.l)
 
-filtered_dat <-  dat %>%
+dat1 <-  dat %>%
   filter(!(who=="letiacianna" | who=="leticianna" & activity %in% c("fatigue","control"))) %>%
   group_by(who,activity) %>%
   mutate(normF = abs(force)/(max(abs(force))))
@@ -49,7 +49,7 @@ filtered_dat <-  dat %>%
 
 ```{r models, echo=FALSE, message=FALSE, warning=FALSE}
 
-graph1 <- filtered_dat %>%
+graph1 <- dat1 %>%
   ggplot(aes(angle,normF,col=activity))+geom_point()
 graph1
 
@@ -59,7 +59,7 @@ graph1
 
 
 ```{r models2, echo=FALSE, message=FALSE, warning=FALSE}
-AICs <- filtered_dat %>% 
+AICs <- dat1 %>% 
   group_by(who,activity) %>% 
   summarize(
     pol.m2=AICc(lm(normF~poly(angle,2))),
@@ -71,7 +71,7 @@ AICs <- filtered_dat %>%
 
 x.pred <- seq(45,157.5,length.out = 1000)
 
-fits <- filtered_dat%>%
+fits <- dat1%>%
   group_by(who,activity)%>%
   summarize(
     pol.m2=predict(lm(normF~poly(angle,2)),newdata=data.frame(angle=x.pred)),
